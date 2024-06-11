@@ -1,0 +1,1 @@
+console.log('rodou o blockchain.ts')

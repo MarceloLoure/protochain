@@ -10,6 +10,8 @@ export default class Block {
     timestamp: number;
     hash: string;
     previousHash: string;
+    nonce: number;
+    miner: string;
     data: string;
 
     /**
@@ -18,6 +20,8 @@ export default class Block {
      * @param timestamp The timestamp of the mock block
      * @param hash The hash of the mock block
      * @param previousHash The previous hash of the mock block
+     * @param nonce The nonce of the mock block
+     * @param miner The miner of the mock block
      * @param data The data of the mock block
      */
     constructor(block?: Block) {
@@ -25,6 +29,8 @@ export default class Block {
         this.timestamp = block?.timestamp || Date.now();
         this.previousHash = block?.previousHash || "";
         this.data = block?.data || "";
+        this.nonce = block?.nonce || 0;
+        this.miner = block?.miner || "";
         this.hash = block?.hash || this.getHash();
     }
 

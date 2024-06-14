@@ -1,4 +1,4 @@
-import request from "supertest";
+import request from 'supertest';
 import { app } from "../src/server/blockchainServer";
 import Blockchain from "../src/lib/blockchain";
 import Block from "../src/lib/block";
@@ -13,6 +13,12 @@ describe('BlockchainServer', () => {
         expect(response.status).toEqual(200);
         expect(response.body.isValid.success).toEqual(true);
  
+    });
+
+    test("GET /block/next - Should get next block info", async () => {
+        const response = await request(app).get('/block/next');
+        expect(response.status).toEqual(200);
+        expect(response.body.index).toEqual(1);
     });
 
     test("GET /block/:index - Should return genesis", async () => {

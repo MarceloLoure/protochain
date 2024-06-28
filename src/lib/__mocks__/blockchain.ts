@@ -1,21 +1,29 @@
 import Block from "./block";
 import Validation from "../validation";
 import BlockInfo from "../blockInfo";
+import Transaction from "../transaction";
+import TransactionType from "../transactionType";
+import TransactionSearch from "../transactionSearch";
 
 /**
  * Mocked Blockchain class
  */
 export default class Blockchain {
   blocks: Block[];
+  mempool: Transaction[] = [];
   nextIndex: number = 0;
 
   constructor() {
+    this.mempool = [];
     this.blocks = [new Block({
         index: 0,
         hash: "abc",
         previousHash: "",
         timestamp: Date.now(),
-        data: "Genesis Block"
+        transactions: [new Transaction({
+          data: 'tx1',
+          type: TransactionType.FEE
+        } as Transaction) ],
     } as Block
     )];
     this.nextIndex++;
@@ -45,6 +53,23 @@ export default class Blockchain {
     
   }
 
+  addTransaction(transaction: Transaction): Validation {
+    if(!transaction.isValid()) return new Validation(false, "Invalid transaction");
+
+    this.mempool.push(transaction);
+
+    return new Validation();
+  }
+
+  getTransaction(hash: string): TransactionSearch {
+    return {
+        mempoolIndex: 0,
+        transaction: {
+          hash,
+        } 
+      }as TransactionSearch
+  }
+
   /**
    * @returns boolean
    * Validate the blockchain
@@ -68,13 +93,15 @@ export default class Blockchain {
   }
 
   getNextBlock(): BlockInfo {
-    const data = new Date().toString();
+    const transactions= [new Transaction({
+      data: new Date().toString()
+    } as Transaction)]
     const difficulty = 0;
     const previousHash = this.getLatestBlock().hash;
     const index = this.blocks.length;
     const feePerTx =this.getFeePerTx();
     const maxDifficulty = 62;
 
-    return {index, previousHash, difficulty, maxDifficulty, feePerTx, data} as BlockInfo;
+    return {index, previousHash, difficulty, maxDifficulty, feePerTx, transactions} as BlockInfo;
   }
 }

@@ -1,3 +1,4 @@
+import Transaction from './transaction';
 import Validation from '../validation';
 
 /**
@@ -12,7 +13,7 @@ export default class Block {
     previousHash: string;
     nonce: number;
     miner: string;
-    data: string;
+    transactions: Transaction[];
 
     /**
      * 
@@ -22,13 +23,13 @@ export default class Block {
      * @param previousHash The previous hash of the mock block
      * @param nonce The nonce of the mock block
      * @param miner The miner of the mock block
-     * @param data The data of the mock block
+     * @param transactions The data of the mock block
      */
     constructor(block?: Block) {
         this.index = block?.index || 0;
         this.timestamp = block?.timestamp || Date.now();
         this.previousHash = block?.previousHash || "";
-        this.data = block?.data || "";
+        this.transactions = block?.transactions || [] as Transaction[];
         this.nonce = block?.nonce || 0;
         this.miner = block?.miner || "";
         this.hash = block?.hash || this.getHash();

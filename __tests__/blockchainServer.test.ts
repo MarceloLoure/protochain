@@ -2,9 +2,11 @@ import request from 'supertest';
 import { app } from "../src/server/blockchainServer";
 import Blockchain from "../src/lib/blockchain";
 import Block from "../src/lib/block";
+import Transaction from '../src/lib/transaction';
 
 jest.mock("../src/lib/block");
 jest.mock("../src/lib/blockchain");
+jest.mock('../src/lib/transaction');
 
 describe('BlockchainServer', () => {
 
@@ -71,4 +73,36 @@ describe('BlockchainServer', () => {
         expect(response.status).toEqual(400);
     });
 
+    
+    test("GET /transactions/:hash - Should return transaction", async () => {
+        const response = await request(app).get('/transactions/abc');
+        expect(response.status).toEqual(200);
+        expect(response.body.mempoolIndex).toEqual(0);
+    });
+
+    test("POST /transactions - Should return 201", async () => {
+        const tx = new Transaction({
+            data: 'tx1',
+        } as Transaction);
+
+        const response = await request(app)
+            .post('/transactions')
+            .send(tx);
+
+        expect(response.status).toEqual(201);
+    });
+
+    test("POST /transactions - Should return 422", async () => {
+        let tx = new Transaction({
+            data: 'tx1',
+        } as Transaction);
+
+        tx.hash = '';
+
+        const response = await request(app)
+            .post('/transactions')
+            .send(tx);
+
+        expect(response.status).toEqual(422);
+    });
 });

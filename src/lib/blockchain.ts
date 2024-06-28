@@ -1,5 +1,8 @@
 import Block from "./block";
 import BlockInfo from "./blockInfo";
+import Transaction from "./transaction";
+import TransactionSearch from "./transactionSearch";
+import TransactionType from "./transactionType";
 import Validation from "./validation";
 
 /**
@@ -7,15 +10,20 @@ import Validation from "./validation";
  */
 export default class Blockchain {
   blocks: Block[];
+  mempool: Transaction[] = [];
   nextIndex: number = 0;
   static readonly DIFFICULTY_FACTORY: number = 5;
   static readonly MAX_DIFFICULTY: number = 62;
+  static readonly TX_PER_BLOCK: number = 2;
 
   constructor() {
     this.blocks = [new Block({
       index: this.nextIndex,
       previousHash: "",
-      data: "Genesis Block"
+      transactions: [new Transaction({
+        type: TransactionType.FEE,
+        data: new Date().toString()
+      } as Transaction)]
     } as Block
     )];
     this.nextIndex++;
@@ -40,6 +48,22 @@ export default class Blockchain {
     return Math.ceil(this.blocks.length / Blockchain.DIFFICULTY_FACTORY);
   }
 
+  addTransaction(transaction: Transaction): Validation {
+    const validation = transaction.isValid();
+
+    if(!validation.success)
+      return new Validation(false, "Invalid transaction: " + validation.message);
+
+    if(this.blocks.some(b => b.transactions.some(tx => tx.hash === transaction.hash)))
+      return new Validation(false, "Transaction already in blockchain");
+
+    if(this.mempool.some(tx => tx.hash === transaction.hash)) 
+      return new Validation(false, "Transaction already in mempool");
+
+    this.mempool.push(transaction);
+    return new Validation(true, transaction.hash);
+  }
+
   /**
    * 
    * @param block The block to add
@@ -50,9 +74,15 @@ export default class Blockchain {
     const lastBlock = this.getLatestBlock();
 
     if(!block.isValid(lastBlock.hash, lastBlock.index, this.getDifficulty() ).success) return new Validation(false, 'Invalid block');
+
+    const txs = block.transactions.filter(tx => tx.type !== TransactionType.FEE).map(tx => tx.hash);
+    const newMemPool = this.mempool.filter(tx => !txs.includes(tx.hash));
+    
+    if(newMemPool.length + txs.length !== this.mempool.length) return new Validation(false, 'Invalid tx in block: mempool');
+
     this.blocks.push(block);
     this.nextIndex++;
-    return new Validation();
+    return new Validation(true, block.hash);
     
   }
 
@@ -83,6 +113,26 @@ export default class Blockchain {
     return this.blocks.find(block => block.hash === hash);
   }
 
+  getTransaction(hash: string): TransactionSearch {
+    const mempoolIndex = this.mempool.findIndex(tx => tx.hash === hash);
+    if(mempoolIndex !== -1) {
+      return {
+        mempoolIndex,
+        transaction: this.mempool[mempoolIndex]
+      } as TransactionSearch;
+    }
+
+    const blockIndex = this.blocks.findIndex(block => block.transactions.some(tx => tx.hash === hash));
+
+    if(blockIndex !== -1) {
+      return {
+        blockIndex,
+        transaction: this.blocks[blockIndex].transactions.find(tx => tx.hash === hash) as Transaction
+      } as TransactionSearch;
+    }
+
+    return { blockIndex: -1, mempoolIndex: -1} as TransactionSearch;
+  }
 
   /**
    * 
@@ -93,14 +143,19 @@ export default class Blockchain {
     return 1;
   }
 
-  getNextBlock(): BlockInfo {
-    const data = new Date().toString();
+  getNextBlock(): BlockInfo | null {
+    if(!this.mempool || !this.mempool.length) {
+      return null;
+    }
+
+    const transactions = this.mempool.splice(0, Blockchain.TX_PER_BLOCK);
+
     const difficulty = this.getDifficulty();
     const previousHash = this.getLatestBlock().hash;
     const index = this.blocks.length;
     const feePerTx =this.getFeePerTx();
     const maxDifficulty = Blockchain.MAX_DIFFICULTY;
 
-    return {index, previousHash, difficulty, maxDifficulty, feePerTx, data} as BlockInfo;
+    return {index, previousHash, difficulty, maxDifficulty, feePerTx, transactions} as BlockInfo;
   }
 }

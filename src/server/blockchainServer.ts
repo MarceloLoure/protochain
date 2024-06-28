@@ -5,6 +5,7 @@ import express from 'express';
 import morgan from 'morgan';
 import Blockchain from '../lib/blockchain';
 import Block from '../lib/block';
+import Transaction from '../lib/transaction';
 
 const PORT = parseInt(`${process.env.PORT}`) || 3000;
 
@@ -45,6 +46,35 @@ app.get('/block/:indexOrHash', (req, res, next) => {
 
 });
 
+app.get('/transactions', (req, res, next) => {
+    res.json({
+        next: blockchain.mempool.slice(0,10),
+        total: blockchain.mempool.length
+    });
+});
+
+app.get('/transactions/:hash?', (req, res, next) => {
+
+    if(req.params.hash) {
+        const tx = blockchain.getTransaction(req.params.hash);
+        if(tx) {
+            res.json(tx);
+        } else {
+            res.sendStatus(404);
+        }
+    } else {
+        res.json({
+            next: blockchain.mempool.slice(0,10),
+            total: blockchain.mempool.length
+        });
+    }
+
+    res.json({
+        next: blockchain.mempool.slice(0,10),
+        total: blockchain.mempool.length
+    });
+});
+
 app.post('/block', (req, res, next) => {
     if(req.body.hash === undefined ) {
         return res.sendStatus(422);
@@ -55,6 +85,21 @@ app.post('/block', (req, res, next) => {
 
     if(validation.success) {
         res.status(201).json(block);
+    } else {
+        res.status(400).json(validation);
+    }
+});
+
+app.post('/transactions', (req, res, next) => {
+    if(req.body.hash === undefined || req.body.hash === '') {
+        return res.sendStatus(422);
+    }
+
+    const tx = new Transaction(req.body as Transaction);
+    const validation = blockchain.addTransaction(tx);
+
+    if(validation.success) {
+        res.status(201).json(tx);
     } else {
         res.status(400).json(validation);
     }

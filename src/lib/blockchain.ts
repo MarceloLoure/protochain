@@ -1,6 +1,7 @@
 import Block from "./block";
 import BlockInfo from "./blockInfo";
 import Transaction from "./transaction";
+import TransactionInput from "./transactionInput";
 import TransactionSearch from "./transactionSearch";
 import TransactionType from "./transactionType";
 import Validation from "./validation";
@@ -22,7 +23,7 @@ export default class Blockchain {
       previousHash: "",
       transactions: [new Transaction({
         type: TransactionType.FEE,
-        data: new Date().toString()
+        txInput: new TransactionInput()
       } as Transaction)]
     } as Block
     )];
@@ -45,10 +46,19 @@ export default class Blockchain {
    * Get the difficulty of the blockchain
    */
   getDifficulty(): number {
-    return Math.ceil(this.blocks.length / Blockchain.DIFFICULTY_FACTORY);
+    return Math.ceil(this.blocks.length / Blockchain.DIFFICULTY_FACTORY) + 1;
   }
 
   addTransaction(transaction: Transaction): Validation {
+    if(transaction.txInput){
+      const from = transaction.txInput.fromAddress;
+      const pendingTx = this.mempool.map(tx => tx.txInput).filter(txi => txi!.fromAddress === from);
+
+      if(pendingTx && pendingTx.length) {
+        return new Validation(false, "There is a pending transaction from this address");
+      }
+    }
+
     const validation = transaction.isValid();
 
     if(!validation.success)
@@ -56,9 +66,6 @@ export default class Blockchain {
 
     if(this.blocks.some(b => b.transactions.some(tx => tx.hash === transaction.hash)))
       return new Validation(false, "Transaction already in blockchain");
-
-    if(this.mempool.some(tx => tx.hash === transaction.hash)) 
-      return new Validation(false, "Transaction already in mempool");
 
     this.mempool.push(transaction);
     return new Validation(true, transaction.hash);
@@ -76,9 +83,9 @@ export default class Blockchain {
     if(!block.isValid(lastBlock.hash, lastBlock.index, this.getDifficulty() ).success) return new Validation(false, 'Invalid block');
 
     const txs = block.transactions.filter(tx => tx.type !== TransactionType.FEE).map(tx => tx.hash);
-    const newMemPool = this.mempool.filter(tx => !txs.includes(tx.hash));
-    
-    if(newMemPool.length + txs.length !== this.mempool.length) return new Validation(false, 'Invalid tx in block: mempool');
+    const newMempool = this.mempool.filter(tx => !txs.includes(tx.hash));
+
+    //if (newMempool.length + txs.length !== this.mempool.length) return new Validation(false, `Invalid tx in block: mempool`);
 
     this.blocks.push(block);
     this.nextIndex++;

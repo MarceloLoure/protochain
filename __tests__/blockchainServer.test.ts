@@ -3,10 +3,12 @@ import { app } from "../src/server/blockchainServer";
 import Blockchain from "../src/lib/blockchain";
 import Block from "../src/lib/block";
 import Transaction from '../src/lib/transaction';
+import TransactionInput from '../src/lib/transactionInput';
 
 jest.mock("../src/lib/block");
 jest.mock("../src/lib/blockchain");
 jest.mock('../src/lib/transaction');
+jest.mock('../src/lib/transactionInput');
 
 describe('BlockchainServer', () => {
 
@@ -82,7 +84,7 @@ describe('BlockchainServer', () => {
 
     test("POST /transactions - Should return 201", async () => {
         const tx = new Transaction({
-            data: 'tx1',
+            txInput: new TransactionInput(),
         } as Transaction);
 
         const response = await request(app)
@@ -94,7 +96,7 @@ describe('BlockchainServer', () => {
 
     test("POST /transactions - Should return 422", async () => {
         let tx = new Transaction({
-            data: 'tx1',
+            txInput: new TransactionInput(),
         } as Transaction);
 
         tx.hash = '';

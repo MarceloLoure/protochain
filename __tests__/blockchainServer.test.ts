@@ -4,107 +4,111 @@ import Blockchain from "../src/lib/blockchain";
 import Block from "../src/lib/block";
 import Transaction from '../src/lib/transaction';
 import TransactionInput from '../src/lib/transactionInput';
+import TransactionOutput from '../src/lib/transactionOutput';
 
-jest.mock("../src/lib/block");
-jest.mock("../src/lib/blockchain");
+jest.mock('../src/lib/block');
+jest.mock('../src/lib/blockchain');
 jest.mock('../src/lib/transaction');
 jest.mock('../src/lib/transactionInput');
+jest.mock('../src/lib/transactionOutput');
 
-describe('BlockchainServer', () => {
+describe('BlockchainServer Tests', () => {
+    test('GET /status - Should return status', async () => {
+        const response = await request(app)
+            .get('/status');
 
-    test("GET /status - Should return status", async () => {
-        const response = await request(app).get('/status');
         expect(response.status).toEqual(200);
         expect(response.body.isValid.success).toEqual(true);
- 
-    });
+    })
 
-    test("GET /block/next - Should get next block info", async () => {
-        const response = await request(app).get('/block/next');
-        expect(response.status).toEqual(200);
-        expect(response.body.index).toEqual(1);
-    });
+    test('GET /blocks/:index - Should get genesis', async () => {
+        const response = await request(app)
+            .get('/block/0');
 
-    test("GET /block/:index - Should return genesis", async () => {
-        const response = await request(app).get('/block/0');
         expect(response.status).toEqual(200);
         expect(response.body.index).toEqual(0);
-    });
+    })
 
-    test("GET /block/:hash - Should return genesis", async () => {
-        const response = await request(app).get('/block/abc');
-        expect(response.status).toEqual(200);
-        expect(response.body.hash).toEqual('abc');
-    });
-
-    test("GET /block/:indexOrHash - Should return 404", async () => {
-        const response = await request(app).get('/block/1');
-        expect(response.status).toEqual(404);
-    });
-
-    test("POST /block - Should return 201", async () => {
-        const block = new Block({
-            index: 1,
-        } as Block);
-
+    test('GET /blocks/next - Should get next block info', async () => {
         const response = await request(app)
-            .post('/block')
+            .get('/block/next');
+
+        expect(response.status).toEqual(200);
+        expect(response.body.index).toEqual(1);
+    })
+
+    test('GET /blocks/:hash - Should get block', async () => {
+        const response = await request(app)
+            .get('/block/abc');
+
+        expect(response.status).toEqual(200);
+        expect(response.body.hash).toEqual("abc");
+    })
+
+    test('GET /blocks/:index - Should NOT get block', async () => {
+        const response = await request(app)
+            .get('/block/-1');
+
+        expect(response.status).toEqual(404);
+    })
+
+    test('POST /blocks/ - Should add block', async () => {
+        const block = new Block({
+            index: 1
+        } as Block);
+        const response = await request(app)
+            .post('/block/')
             .send(block);
 
         expect(response.status).toEqual(201);
         expect(response.body.index).toEqual(1);
-    });
+    })
 
-    test("POST /block - Should return 422", async () => {
+    test('POST /blocks/ - Should NOT add block (empty)', async () => {
         const response = await request(app)
-            .post('/block')
+            .post('/block/')
             .send({});
 
         expect(response.status).toEqual(422);
-    });
+    })
 
-    test("POST /block - Should return 400", async () => {
+    test('POST /block/ - Should NOT add block (invalid)', async () => {
         const block = new Block({
-            index: -1,
+            index: -1
         } as Block);
-
         const response = await request(app)
-            .post('/block')
+            .post('/block/')
             .send(block);
 
         expect(response.status).toEqual(400);
-    });
+    })
 
-    
-    test("GET /transactions/:hash - Should return transaction", async () => {
-        const response = await request(app).get('/transactions/abc');
+    test('GET /transactions/:hash - Should get transaction', async () => {
+        const response = await request(app)
+            .get('/transactions/abc');
+
         expect(response.status).toEqual(200);
         expect(response.body.mempoolIndex).toEqual(0);
-    });
+    })
 
-    test("POST /transactions - Should return 201", async () => {
+    test('GET /wallets/:wallet - Should get balance', async () => {
+        const response = await request(app)
+            .get('/wallets/abc');
+
+        expect(response.status).toEqual(200);
+        expect(response.body.balance).toEqual(10);
+    })
+
+    test('POST /transactions/ - Should add tx', async () => {
         const tx = new Transaction({
-            txInput: new TransactionInput(),
+            txInputs: [new TransactionInput()],
+            txOutputs: [new TransactionOutput()],
         } as Transaction);
 
         const response = await request(app)
-            .post('/transactions')
+            .post('/transactions/')
             .send(tx);
-
+        
         expect(response.status).toEqual(201);
-    });
-
-    test("POST /transactions - Should return 422", async () => {
-        let tx = new Transaction({
-            txInput: new TransactionInput(),
-        } as Transaction);
-
-        tx.hash = '';
-
-        const response = await request(app)
-            .post('/transactions')
-            .send(tx);
-
-        expect(response.status).toEqual(422);
-    });
-});
+    })
+})

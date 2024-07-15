@@ -6,25 +6,30 @@ import morgan from 'morgan';
 import Blockchain from '../lib/blockchain';
 import Block from '../lib/block';
 import Transaction from '../lib/transaction';
+import Wallet from '../lib/wallet';
+import TransactionOutput from '../lib/transactionOutput';
 
 const PORT = parseInt(`${process.env.PORT}`) || 3000;
 
 const app = express();
 
-/* c8 ignore next */
+/* c8 ignore start */
 if(process.argv.includes('--run')) {app.use(morgan('tiny'));}
+/* c8 ignore end */
 
 app.use(express.json());
 
-const blockchain = new Blockchain();
+const wallet = new Wallet(process.env.BLOCKCHAIN_WALLET)
+const blockchain = new Blockchain(wallet.publicKey);
 
 app.get('/status', (req, res, next) => {
     res.json({
-        numberOfBlocks: blockchain.blocks.length,
+        mempool: blockchain.mempool.length,
+        blocks: blockchain.blocks.length,
         isValid: blockchain.isValid(),
-        lastBlock: blockchain.getLatestBlock()
-    });
-});
+        lastBlock: blockchain.getLastBlock()
+    })
+})
 
 app.get('/block/next', (req, res, next) => {
     res.json(blockchain.getNextBlock());
@@ -32,62 +37,51 @@ app.get('/block/next', (req, res, next) => {
 
 app.get('/block/:indexOrHash', (req, res, next) => {
     let block;
-    if(/^[0-9]+$/.test(req.params.indexOrHash)){
+    if (/^[0-9]+$/.test(req.params.indexOrHash))
         block = blockchain.blocks[parseInt(req.params.indexOrHash)];
-    } else {
-        block = res.json(blockchain.getBlock(req.params.indexOrHash));
-    }
+    else
+        block = blockchain.getBlock(req.params.indexOrHash);
 
-    if(!block) {
-        res.sendStatus(404);
-    } else {
-        res.json(block);
-    }
+    if (!block)
+        return res.sendStatus(404);
+    else
+        return res.json(block);
 
 });
 
 app.get('/transactions', (req, res, next) => {
-    res.json({
-        next: blockchain.mempool.slice(0,10),
-        total: blockchain.mempool.length
-    });
+    if (req.body.hash === undefined) return res.sendStatus(422);
+
+    const tx = new Transaction(req.body as Transaction);
+    const validation = blockchain.addTransaction(tx);
+
+    if (validation.success)
+        res.status(201).json(tx);
+    else
+        res.status(400).json(validation);
 });
 
 app.get('/transactions/:hash?', (req, res, next) => {
 
-    if(req.params.hash) {
-        const tx = blockchain.getTransaction(req.params.hash);
-        if(tx) {
-            res.json(tx);
-        } else {
-            res.sendStatus(404);
-        }
-    } else {
+    if (req.params.hash)
+        res.json(blockchain.getTransaction(req.params.hash));
+    else
         res.json({
-            next: blockchain.mempool.slice(0,10),
+            next: blockchain.mempool.slice(0, Blockchain.TX_PER_BLOCK),
             total: blockchain.mempool.length
         });
-    }
-
-    res.json({
-        next: blockchain.mempool.slice(0,10),
-        total: blockchain.mempool.length
-    });
 });
 
 app.post('/block', (req, res, next) => {
-    if(req.body.hash === undefined ) {
-        return res.sendStatus(422);
-    }
+    if (req.body.hash === undefined) return res.sendStatus(422);
 
     const block = new Block(req.body as Block);
     const validation = blockchain.addBlock(block);
 
-    if(validation.success) {
+    if (validation.success)
         res.status(201).json(block);
-    } else {
+    else
         res.status(400).json(validation);
-    }
 });
 
 app.post('/transactions', (req, res, next) => {
@@ -105,8 +99,24 @@ app.post('/transactions', (req, res, next) => {
     }
 });
 
-/* c8 ignore next */
-if(process.argv.includes('--run')) {app.listen(PORT, () => {console.log(`Server is running on http://localhost:${PORT}`);});}
+app.get('/wallets/:wallet', (req, res, next) => {
+    const wallet = req.params.wallet;
+
+    const utxo = blockchain.getUtxo(wallet);
+    const balance = blockchain.getBalance(wallet);
+    const fee = blockchain.getFeePerTx();
+
+    return res.json({
+        balance,
+        fee,
+        utxo
+    });
+});
+
+/* c8 ignore start */
+if (process.argv.includes("--run"))
+    app.listen(PORT, () => console.log(`Blockchain server is running at ${PORT}. Wallet: ${wallet.publicKey}`));
+/* c8 ignore end */
 
 export {
     app

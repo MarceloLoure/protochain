@@ -5,6 +5,7 @@ import Transaction from "../transaction";
 import TransactionType from "../transactionType";
 import TransactionSearch from "../transactionSearch";
 import TransactionInput from "./transactionInput";
+import TransactionOutput from "./transactionOutput";
 
 /**
  * Mocked Blockchain class
@@ -14,19 +15,18 @@ export default class Blockchain {
   mempool: Transaction[] = [];
   nextIndex: number = 0;
 
-  constructor() {
-    this.mempool = [];
-    this.blocks = [new Block({
+  constructor(miner: string) {
+    this.blocks = [];
+    this.mempool = [new Transaction()];
+
+    this.blocks.push(new Block({
         index: 0,
         hash: "abc",
         previousHash: "",
+        miner: miner,
         timestamp: Date.now(),
-        transactions: [new Transaction({
-          txInput: new TransactionInput(),
-          type: TransactionType.FEE
-        } as Transaction) ],
     } as Block
-    )];
+    ));
     this.nextIndex++;
   }
 
@@ -35,7 +35,7 @@ export default class Blockchain {
    * @returns Block mocked
    * Get the latest block mocked in the blockchain
    */
-  getLatestBlock(): Block {
+  getLastBlock(): Block {
     return this.blocks[this.blocks.length - 1];
   }
 
@@ -55,20 +55,21 @@ export default class Blockchain {
   }
 
   addTransaction(transaction: Transaction): Validation {
-    if(!transaction.isValid()) return new Validation(false, "Invalid transaction");
+    const validation = transaction.isValid(1, 10);
+    if (!validation.success) return validation;
 
     this.mempool.push(transaction);
-
     return new Validation();
   }
 
   getTransaction(hash: string): TransactionSearch {
+    if (hash === "-1")
+        return { mempoolIndex: -1, blockIndex: -1 } as TransactionSearch;
+
     return {
         mempoolIndex: 0,
-        transaction: {
-          hash,
-        } 
-      }as TransactionSearch
+        transaction: new Transaction()
+    } as TransactionSearch;
   }
 
   /**
@@ -86,6 +87,9 @@ export default class Blockchain {
    * Get a block by its hash
    */
   getBlock(hash: string): Block | undefined {
+    if(!hash || hash === '-1'){
+      return undefined
+    }
     return this.blocks.find(block => block.hash === hash);
   }
 
@@ -94,15 +98,38 @@ export default class Blockchain {
   }
 
   getNextBlock(): BlockInfo {
-    const transactions= [new Transaction({
-      txInput: new TransactionInput(),
-    } as Transaction)]
-    const difficulty = 1;
-    const previousHash = this.getLatestBlock().hash;
+    const transactions= this.mempool.slice(0,2);
+    const difficulty = 2;
+    const previousHash = this.getLastBlock().hash;
     const index = this.blocks.length;
     const feePerTx =this.getFeePerTx();
     const maxDifficulty = 62;
 
     return {index, previousHash, difficulty, maxDifficulty, feePerTx, transactions} as BlockInfo;
+  }
+
+  getTxInputs(wallet: string): (TransactionInput | undefined)[] {
+    return [new TransactionInput({
+      amount: 10,
+      fromAddress: wallet,
+      previousTx:'abc',
+      signature: "abc",
+    } as TransactionInput)];
+  }
+
+  getTxOutputs(wallet: string): TransactionOutput[] {
+    return [new TransactionOutput({
+      amount: 10,
+      toAddress: wallet,
+      tx: 'abc',
+    } as TransactionOutput)];
+  }
+
+  getUtxo(wallet: string): TransactionOutput[] {
+    return this.getTxOutputs(wallet);
+  }
+
+  getBalance(wallet: string): number {
+    return 10;
   }
 }

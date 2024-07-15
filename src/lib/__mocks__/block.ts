@@ -24,6 +24,7 @@ export default class Block {
      * @param nonce The nonce of the mock block
      * @param miner The miner of the mock block
      * @param transactions The data of the mock block
+     * @param miner The miner of the mock block
      */
     constructor(block?: Block) {
         this.index = block?.index || 0;
@@ -31,7 +32,7 @@ export default class Block {
         this.previousHash = block?.previousHash || "";
         this.transactions = block?.transactions || [] as Transaction[];
         this.nonce = block?.nonce || 0;
-        this.miner = block?.miner || "";
+        this.miner = block?.miner || "abc";
         this.hash = block?.hash || this.getHash();
     }
 
@@ -40,8 +41,8 @@ export default class Block {
      * @returns boolean
      * Check if the mock block is valid
      */
-    isValid(previousHash: string, previousIndex: number ): Validation {
-       if(!previousHash || previousIndex < 0 || this.index < 0){
+    isValid(previousHash: string, previousIndex: number, feePerTx: number ): Validation {
+       if(!previousHash || previousIndex < 0 || this.index < 0 || feePerTx < 1){
               return new Validation(false, 'Invalid mock block');
        }
        return new Validation();
@@ -54,5 +55,9 @@ export default class Block {
      */
     getHash(): string {
         return this.hash || "baseHash"
+    }
+
+    mine(difficulty: number, miner: string){
+        this.miner = miner;
     }
 }
